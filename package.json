@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@avalabs/builderkit": "^0.0.2",
     "next": "14.2.30",
     "react": "^18",
     "react-dom": "^18"
