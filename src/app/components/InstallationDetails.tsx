@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useReadContract, useAccount, useConfig, useWriteContract } from 'wagmi';
-import { formatUnits } from 'ethers'
+import { waitForTransactionReceipt } from 'wagmi/actions'
+import { formatUnits, parseUnits } from 'ethers'
 import { useForm } from 'react-hook-form'
 import fundingVaultAbi from '../contracts/fundingVault.json';
 import sunTokenAbi from '../contracts/sunToken.json';
+import erc20Abi from '../contracts/erc20.json';
 
 type FormData = {
   amount: number
 }
+
+// Note: could also be taken from vault
+const EURC_ADDRESS = '0x5E44db7996c682E92a960b65AC713a54AD815c6B'
 
 export default function InstallationDetails({ installation }: { installation: any }) {
   const [name, setName] = useState()
@@ -15,6 +20,10 @@ export default function InstallationDetails({ installation }: { installation: an
   const [area, setArea] = useState()
   const [capacity, setCapacity] = useState()
   const [location, setLocation] = useState()
+
+  const { isConnected, address: currentAddress } = useAccount()
+  const wagmiConfig = useConfig()
+  const { writeContractAsync } = useWriteContract()
 
   const { register, handleSubmit } = useForm<FormData>()
 
@@ -67,6 +76,13 @@ export default function InstallationDetails({ installation }: { installation: an
     args: []
   })
 
+  const { data: sunTokensBalance } = useReadContract({
+    address: assetTokenAddress as any,
+    abi: sunTokenAbi,
+    functionName: 'balanceOf',
+    args: [currentAddress, installation.tokenId]
+  })
+
   useEffect(() => {
     console.log(uri)
     if (!uri) return
@@ -85,14 +101,41 @@ export default function InstallationDetails({ installation }: { installation: an
     fetchMetadata()
   }, [uri])
 
-  const onSubmit = (data: FormData) => {
-    console.log('Investment amount:', data.amount)
-    // handle investment logic here
+  const onSubmit = async (data: FormData) => {
+    console.log('Investing:', data.amount)
+
+    const amount = parseUnits(data.amount.toString(), 6)
+
+    const approveTxHash = await writeContractAsync({
+      address: EURC_ADDRESS, // EURC
+      abi: erc20Abi,
+      functionName: 'approve',
+      args: [installation.vaultAddress, amount]
+    })
+
+    console.log(`Approve tx placed: ${approveTxHash}`)
+
+    const receipt = await waitForTransactionReceipt(wagmiConfig, {
+      hash: approveTxHash,
+      confirmations: 1
+    })
+
+    console.log(`Approve tx receipt status: `, receipt.status)
+
+    const erc1155data = '0x'
+    const investTxHash = await writeContractAsync({
+      address: installation.vaultAddress,
+      abi: fundingVaultAbi,
+      functionName: 'borrow',
+      args: [amount, erc1155data]
+    })
+
+    console.log(`Invest tx placed: ${investTxHash}`)
   }
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-4">{name}</h1>
+      <h1 className="text-3xl font-bold mb-6">{name}</h1>
       <div className="flex flex-col gap-8 md:flex-row md:gap-6">
         <div className="flex-1 space-y-4">
           <h3 className="text-xl font-bold">{installation.stationId}</h3>
@@ -142,6 +185,7 @@ export default function InstallationDetails({ installation }: { installation: an
         </div>
         <div className="flex-1 space-y-4">
           <h3 className="text-xl font-bold">Invest</h3>
+          {(typeof sunTokensBalance === 'bigint') && <p className="text-gray-400">Owned: {formatUnits(sunTokensBalance, 6)}</p>}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <input
               type="number"
@@ -151,7 +195,12 @@ export default function InstallationDetails({ installation }: { installation: an
             />
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded hover:bg-blue-700 transition"
+              className={`w-full font-semibold py-2 px-4 rounded transition
+                ${isConnected
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'}
+                `}
+              disabled={!isConnected}
             >
               Submit
             </button>
