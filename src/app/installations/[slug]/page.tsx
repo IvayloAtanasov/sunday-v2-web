@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation'
+import InstallationDetails from '../../components/InstallationDetails';
 
-export default function InstallationDetails({ params }: { params: { slug: string } }) {
+export default function InstallationDetailsPage({ params }: { params: { slug: string } }) {
   const [installation, setInstallation] = useState<any>(null)
   const [isLoading, setLoading] = useState(true)
 
@@ -23,10 +24,5 @@ export default function InstallationDetails({ params }: { params: { slug: string
 
   if (!installation) return notFound()
 
-  return (
-    <div>
-      <h1 className="text-3xl font-bold mb-4">{installation.stationId}</h1>
-      <p className="text-gray-700">{installation.timezone}</p>
-    </div>
-  )
+  return <InstallationDetails installation={installation} />
 }
