@@ -6,20 +6,31 @@ import { useForm } from 'react-hook-form'
 import fundingVaultAbi from '../contracts/fundingVault.json';
 import sunTokenAbi from '../contracts/sunToken.json';
 import erc20Abi from '../contracts/erc20.json';
+import { fetchIpfsJson, ipfsUrl } from '../lib/ipfs';
 
 type FormData = {
   amount: number
+}
+
+type TokenMetadata = {
+  name: string
+  description: string
+  properties: {
+    area: string
+    capacity: string
+    location: string
+  }
 }
 
 // Note: could also be taken from vault
 const EURC_ADDRESS = '0x5E44db7996c682E92a960b65AC713a54AD815c6B'
 
 export default function InstallationDetails({ installation }: { installation: any }) {
-  const [name, setName] = useState()
-  const [description, setDescription] = useState()
-  const [area, setArea] = useState()
-  const [capacity, setCapacity] = useState()
-  const [location, setLocation] = useState()
+  const [name, setName] = useState<string>()
+  const [description, setDescription] = useState<string>()
+  const [area, setArea] = useState<string>()
+  const [capacity, setCapacity] = useState<string>()
+  const [location, setLocation] = useState<string>()
 
   const { isConnected, address: currentAddress } = useAccount()
   const wagmiConfig = useConfig()
@@ -84,12 +95,10 @@ export default function InstallationDetails({ installation }: { installation: an
   })
 
   useEffect(() => {
-    console.log(uri)
     if (!uri) return
 
     const fetchMetadata = async () => {
-      const metadata = await fetch(uri as string).then(res => res.json())
-      // console.log(metadata)
+      const metadata = await fetchIpfsJson<TokenMetadata>(uri as string)
 
       setName(metadata.name)
       setDescription(metadata.description)
@@ -98,7 +107,7 @@ export default function InstallationDetails({ installation }: { installation: an
       setLocation(metadata.properties.location)
     }
 
-    fetchMetadata()
+    fetchMetadata().catch(error => console.error('Failed to load token metadata', error))
   }, [uri])
 
   const onSubmit = async (data: FormData) => {
@@ -141,7 +150,7 @@ export default function InstallationDetails({ installation }: { installation: an
           <h3 className="text-xl font-bold">{installation.stationId}</h3>
           <p className="text-gray-400">{description}</p>
           <img
-            src={installation.imageUrl}
+            src={ipfsUrl(installation.imageUrl)}
             alt={installation.stationId}
             className="w-full h-64 object-cover rounded"
           />
@@ -149,7 +158,7 @@ export default function InstallationDetails({ installation }: { installation: an
           <p className="text-gray-400">Capacity: {capacity}</p>
           <p className="text-gray-400">Location: {location}</p>
           <div>
-            <a href={uri as string || 'http://ipfs'} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+            <a href={ipfsUrl(uri as string) ?? '#'} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
               View IPFS metadata
             </a>
           </div>
