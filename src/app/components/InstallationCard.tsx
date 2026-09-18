@@ -10,7 +10,7 @@ type Props = {
 export default function InstallationCard({ slug, title, image }: Props) {
   return (
     <Link
-      href={`/installations/${slug}`}
+      href={`/app/installations/${slug}`}
       className="block rounded-lg overflow-hidden shadow hover:shadow-lg transition duration-200 bg-white"
     >
       <img src={ipfsUrl(image)} alt={title} className="w-full h-64 object-cover" />

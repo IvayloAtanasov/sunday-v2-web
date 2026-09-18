@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation'
-import InstallationDetails from '../../components/InstallationDetails';
+import InstallationDetails from '../../../components/InstallationDetails';
 
 export default function InstallationDetailsPage({ params }: { params: { slug: string } }) {
   const [installation, setInstallation] = useState<any>(null)
