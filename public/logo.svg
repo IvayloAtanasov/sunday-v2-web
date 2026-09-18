@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- AC wave: current and money moving through the same line -->
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="none" stroke="#2A2D33" stroke-width="2"/>
+  <path d="M10 32 C 18 10, 26 10, 32 32 S 46 54, 54 32" fill="none" stroke="#F5A524" stroke-width="5" stroke-linecap="round"/>
+</svg>
