@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import s from "./landing.module.css";
+import { AccountCard, Diorama, Pylon, Reservoir, SolarArray } from "./FlowObjects";
 
 /**
  * Animated flow schema: one sample vault's life, compressed into a 40-second loop.
@@ -48,45 +49,49 @@ type Layout = {
   w: number;
   h: number;
   card: { w: number; h: number };
+  art: number; // illustration scale
   nodes: Record<NodeId, Pt>;
   lenders: Pt[];
   ctrl: Partial<Record<EdgeId, Pt>>;
 };
 
+// Each card has room above it for its illustration
 const WIDE: Layout = {
   w: 1000,
-  h: 470,
+  h: 680,
   card: { w: 200, h: 104 },
+  art: 1.3,
   nodes: {
-    pool: { x: 210, y: 250 },
-    plant: { x: 500, y: 90 },
-    account: { x: 500, y: 400 },
-    trader: { x: 820, y: 250 },
+    pool: { x: 210, y: 400 },
+    plant: { x: 500, y: 210 },
+    account: { x: 500, y: 610 },
+    trader: { x: 820, y: 400 },
   },
-  lenders: [170, 210, 250, 290, 330].map((y) => ({ x: 42, y })),
+  lenders: [320, 360, 400, 440, 480].map((y) => ({ x: 42, y })),
   ctrl: {
-    drawdown: { x: 250, y: 410 },
-    energy: { x: 790, y: 90 },
-    settle: { x: 790, y: 410 },
-    data: { x: 250, y: 90 },
+    drawdown: { x: 250, y: 620 },
+    energy: { x: 790, y: 210 },
+    settle: { x: 790, y: 620 },
+    data: { x: 250, y: 210 },
   },
 };
 
 const TALL: Layout = {
   w: 400,
-  h: 670,
+  h: 700,
   card: { w: 186, h: 104 },
+  art: 0.8,
   nodes: {
-    pool: { x: 111, y: 150 },
-    plant: { x: 289, y: 290 },
-    account: { x: 111, y: 440 },
-    trader: { x: 289, y: 590 },
+    pool: { x: 111, y: 187 },
+    plant: { x: 289, y: 330 },
+    account: { x: 111, y: 480 },
+    trader: { x: 289, y: 630 },
   },
   lenders: [51, 81, 111, 141, 171].map((x) => ({ x, y: 30 })),
   ctrl: {
-    build: { x: 289, y: 440 },
-    data: { x: 289, y: 150 },
-    settle: { x: 111, y: 590 },
+    build: { x: 289, y: 480 },
+    data: { x: 289, y: 187 },
+    settle: { x: 111, y: 630 },
   },
 };
 
@@ -156,8 +161,10 @@ function flows(L: Layout): Flow[] {
 }
 
 /** drawdown() moves the whole principal in one transaction: one transfer, not a stream */
-const DRAWDOWN_AT = 5.3;
-const DRAWDOWN_DUR = 1.3;
+const DRAWDOWN_AT = 5.1;
+const DRAWDOWN_DUR = 1.9;
+/** How long the "+€ loan" tag lingers by the account after the transfer lands */
+const LOAN_TAG_DUR = 1.6;
 
 const PULSE_EVERY = 1.0;
 const PULSE_DUR = 0.9;
@@ -186,6 +193,14 @@ function metrics(t: number) {
     owed,
     repaid: owed * smooth(31.2, 34.6, t),
     redeemed: owed * smooth(35.3, 39, t),
+    /** EURC sitting in the vault right now, as a share of the most it ever holds */
+    poolLevel:
+      (t < DRAWDOWN_AT
+        ? PRINCIPAL * smooth(0.3, 4.6, t)
+        : t < 31
+          ? 0
+          : owed * smooth(31.2, 34.6, t) * (1 - smooth(35.3, 39, t))) /
+      (PRINCIPAL + PREMIUM),
   };
 }
 
@@ -294,6 +309,20 @@ export default function FlowSchema() {
         aria-label="Lenders fund a vault; the owner builds an energy installation, sells its output to an electricity trader and repays the vault with premium; lenders redeem."
       >
         <g style={{ opacity: sceneOpacity }}>
+          {/* illustrations, behind everything */}
+          <Diorama x={pool.x} cardTop={pool.y - L.card.h / 2} scale={L.art}>
+            <Reservoir level={m.poolLevel} />
+          </Diorama>
+          <Diorama x={plant.x} cardTop={plant.y - L.card.h / 2} scale={L.art}>
+            <SolarArray built={m.built} glow={m.outputKw / 250} />
+          </Diorama>
+          <Diorama x={account.x} cardTop={account.y - L.card.h / 2} scale={L.art}>
+            <AccountCard />
+          </Diorama>
+          <Diorama x={trader.x} cardTop={trader.y - L.card.h / 2} scale={L.art}>
+            <Pylon />
+          </Diorama>
+
           {/* rails */}
           {fs.filter((f) => !f.id.startsWith("redeem")).map((f) => (
             <path key={`rail-${f.id}`} d={railPath(f)} className={s.rail} />
@@ -349,6 +378,7 @@ export default function FlowSchema() {
             rows={[["Price", `€${m.price.toFixed(1)}/MWh`], ["Bought", `${num(m.produced)} MWh`]]} />
 
           {premiumTicks(pool, L, t)}
+          {loanTag(account, L, t)}
         </g>
       </svg>
 
@@ -417,7 +447,7 @@ function pulses(from: Pt, c: Pt, to: Pt, t: number) {
   return <rect x={pt.x - 4} y={pt.y - 4} width={8} height={8} rx={1.5} className={s.pulse} transform={`rotate(45 ${pt.x} ${pt.y})`} />;
 }
 
-/** The principal as a single transfer, pool → owner's account, labelled with its amount */
+/** The principal as a single transfer, pool → owner's account */
 function drawdown(from: Pt, c: Pt, to: Pt, t: number) {
   const u = (t - DRAWDOWN_AT) / DRAWDOWN_DUR;
   if (u < 0 || u > 1) return null;
@@ -425,10 +455,23 @@ function drawdown(from: Pt, c: Pt, to: Pt, t: number) {
   const pt = quad(from, c, to, e);
   const a = Math.min(1, u / 0.08, (1 - u) / 0.08);
   return (
-    <g opacity={a}>
-      <circle cx={pt.x} cy={pt.y} r={6.5} className={s.transfer} />
-      <text x={pt.x + 12} y={pt.y - 10} className={s.tick}>{eur(PRINCIPAL)}</text>
-    </g>
+    <circle cx={pt.x} cy={pt.y} r={6.5} className={s.transfer} opacity={a} />
+  );
+}
+
+/** "+€n loan" rising beside the account once the drawdown lands, like the premium tags */
+function loanTag(account: Pt, L: Layout, t: number) {
+  const age = t - (DRAWDOWN_AT + DRAWDOWN_DUR);
+  if (age < 0 || age > LOAN_TAG_DUR) return null;
+  return (
+    <text
+      x={account.x + L.card.w / 2 + 10}
+      y={account.y - L.card.h / 2 + 12 - age * 14}
+      className={s.tick}
+      opacity={Math.min(smooth(0, 0.15, age), 1 - smooth(LOAN_TAG_DUR - 0.5, LOAN_TAG_DUR, age))}
+    >
+      +{eur(PRINCIPAL)} loan
+    </text>
   );
 }
 
@@ -445,9 +488,8 @@ function premiumTicks(pool: Pt, L: Layout, t: number) {
   const delta = PREMIUM * (seasonal(clamp(p1)) - seasonal(clamp(p0)));
   return (
     <text
-      x={pool.x}
-      y={pool.y - L.card.h / 2 - 10 - age * 22}
-      textAnchor="middle"
+      x={pool.x + L.card.w / 2 + 10}
+      y={pool.y - L.card.h / 2 + 12 - age * 22}
       className={s.tick}
       opacity={1 - smooth(0.4, 0.9, age)}
     >
