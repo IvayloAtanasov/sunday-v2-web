@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Logo from "./landing/Logo";
+import FlowSchema from "./landing/FlowSchema";
 import s from "./landing/landing.module.css";
 import {
   hero,
@@ -87,14 +88,7 @@ export default function Landing() {
           <div className={s.wrap}>
             <p className={s.eyebrow}>Where the yield comes from</p>
             <h2 className={s.h2}>Energy in, money out, every step visible.</h2>
-            {/* Placeholder: animated flow schema, specced separately (brief §4.3). */}
-            <div className={s.schema} role="img" aria-label="Flow schema placeholder">
-              <span className={s.schemaNode}>Investor pool</span>
-              <span className={s.schemaNode}>Energy installation</span>
-              <span className={s.schemaNode}>Owner&apos;s Sunday account</span>
-              <span className={s.schemaNode}>Electricity trader</span>
-              <span className={s.schemaNote}>Animated flow schema, in design</span>
-            </div>
+            <FlowSchema />
           </div>
         </section>
 

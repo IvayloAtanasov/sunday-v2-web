@@ -11,6 +11,9 @@
   --muted: #8b909a;
   --faint: #5c616b;
   --accent: #f5a524;
+  --energy: #f5a524;
+  --money: #5ee0a0;
+  --data: #c8ccd4;
   --mono: var(--font-geist-mono), ui-monospace, Menlo, monospace;
 
   min-height: 100vh;
@@ -232,39 +235,215 @@
   color: var(--faint);
 }
 
-/* ---------- flow schema placeholder ---------- */
+/* ---------- flow schema ---------- */
 
-.schema {
+.flow {
   margin-top: 48px;
-  aspect-ratio: 16 / 7;
-  min-height: 320px;
-  border: 1px dashed var(--line);
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--surface);
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-  place-items: center;
-  position: relative;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1.2px) 0 0 / 24px 24px,
+    var(--surface);
+  overflow: hidden;
 }
 
-.schemaNode {
+.flowHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
   font-family: var(--mono);
-  font-size: 13px;
-  padding: 10px 16px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.flowClock {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.flowSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 12px 8px;
+}
+
+.rail {
+  fill: none;
+  stroke: #2a2e35;
+  stroke-width: 1.5;
+}
+
+.dataRail {
+  fill: none;
+  stroke: var(--data);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 6;
+}
+
+.pulse {
+  fill: var(--data);
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+}
+
+.lender {
+  fill: var(--bg);
+  stroke: #3a3e45;
+  stroke-width: 1.5;
+}
+
+.cardRect,
+.cardDashed {
+  fill: var(--bg);
+  stroke: #2a2e35;
+  stroke-width: 1;
+}
+
+.cardDashed {
+  stroke-dasharray: 4 4;
+}
+
+.cardRule {
+  stroke: var(--line);
+}
+
+.liveDot {
+  fill: var(--accent);
+}
+
+.idleDot {
+  fill: #3a3e45;
+}
+
+.nodeTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  fill: var(--text);
+}
+
+.nodeSub {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  fill: var(--faint);
+}
+
+.rowKey {
+  font-size: 12px;
+  fill: var(--muted);
+}
+
+.rowVal {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  fill: var(--text);
+}
+
+.tick {
+  font-family: var(--mono);
+  font-size: 12px;
+  fill: var(--money);
+}
+
+.flowTall .nodeTitle {
+  font-size: 12.5px;
+}
+
+@media (max-width: 640px) {
+  .tlLabel {
+    display: none;
+  }
+}
+
+.flowFoot {
+  border-top: 1px solid var(--line);
+  padding: 16px 20px 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 6px;
+}
+
+.timeline li {
+  flex-basis: 0;
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.tlBar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.tlBar span {
+  display: block;
+  height: 100%;
+  background: var(--faint);
+}
+
+.tlActive .tlBar span {
+  background: var(--accent);
+}
+
+.tlLabel {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tlActive .tlLabel {
+  color: var(--text);
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
-.schemaNote {
-  position: absolute;
-  inset: auto 0 16px;
-  text-align: center;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--faint);
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.legend .legendData {
+  border-radius: 1px;
+  transform: rotate(45deg);
+  background: var(--data);
 }
 
 /* ---------- totals ---------- */
@@ -467,12 +646,5 @@
   }
   .stats {
     grid-template-columns: 1fr 1fr;
-  }
-  .schema {
-    aspect-ratio: auto;
-    grid-template-columns: 1fr;
-    grid-template-rows: none;
-    gap: 16px;
-    padding: 32px 16px 56px;
   }
 }
