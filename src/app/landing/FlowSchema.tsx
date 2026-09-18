@@ -144,8 +144,7 @@ function flows(L: Layout): Flow[] {
       id: `fund${i}`, kind: "money" as Kind, from: p, to: pool, ctrl: lenderCtrl(p),
       dur: 1.2, n: 2, on: (t: number) => win(0.2 + i * 0.25, 4.6, t),
     })),
-    { id: "drawdown", kind: "money", from: pool, to: account, ctrl: L.ctrl.drawdown, dur: 1.6, n: 7, on: (t) => win(5, 7.4, t) },
-    { id: "build", kind: "money", from: account, to: plant, ctrl: L.ctrl.build, dur: 1.5, n: 6, on: (t) => win(6.2, 8.8, t) },
+    { id: "build", kind: "money", from: account, to: plant, ctrl: L.ctrl.build, dur: 1.5, n: 6, on: (t) => win(DRAWDOWN_AT + DRAWDOWN_DUR + 0.2, 8.8, t) },
     { id: "energy", kind: "energy", from: plant, to: trader, ctrl: L.ctrl.energy, dur: 1.8, n: 11, on: (t) => win(TERM_START, LOOP + 1, t) * output(t) },
     { id: "settle", kind: "money", from: trader, to: account, ctrl: L.ctrl.settle, dur: 1.8, n: 8, on: (t) => win(TERM_START + 0.8, LOOP + 1, t) * output(t) },
     { id: "repay", kind: "money", from: account, to: pool, ctrl: L.ctrl.drawdown, dur: 1.4, n: 12, on: (t) => win(31.2, 34.4, t) },
@@ -155,6 +154,10 @@ function flows(L: Layout): Flow[] {
     })),
   ];
 }
+
+/** drawdown() moves the whole principal in one transaction: one transfer, not a stream */
+const DRAWDOWN_AT = 5.3;
+const DRAWDOWN_DUR = 1.3;
 
 const PULSE_EVERY = 1.0;
 const PULSE_DUR = 0.9;
@@ -172,8 +175,9 @@ function metrics(t: number) {
     phase: phaseAt(t),
     day: Math.floor(p * TERM_DAYS),
     subscribed: PRINCIPAL * smooth(0.3, 4.6, t),
-    drawn: PRINCIPAL * smooth(5, 7.6, t),
-    built: smooth(6.4, 8.9, t),
+    drawn: t >= DRAWDOWN_AT ? PRINCIPAL : 0, // left the pool
+    received: t >= DRAWDOWN_AT + DRAWDOWN_DUR ? PRINCIPAL : 0, // landed in the account
+    built: smooth(DRAWDOWN_AT + DRAWDOWN_DUR + 0.3, 8.9, t),
     outputKw: t < TERM_START ? 0 : 190 * (0.7 + 0.3 * Math.cos(10 * Math.PI * pLife)) * jitter,
     produced,
     settled: produced * AVG_PRICE,
@@ -200,23 +204,37 @@ export default function FlowSchema() {
     return () => mq.removeEventListener("change", sync);
   }, []);
 
+  // Read inside the frame loop, which is set up once; the state copy drives the button
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
+  const togglePause = () => {
+    pausedRef.current = !pausedRef.current;
+    setPaused(pausedRef.current);
+  };
+
   useEffect(() => {
-    // Dev only: `?flowT=20` freezes the loop at that second, for reviewing single frames
+    let clock = 0;
+    // Dev only: `?flowT=20` opens paused at that second, for reviewing single frames
     const frozen = process.env.NODE_ENV !== "production" && new URLSearchParams(location.search).get("flowT");
-    if (frozen) return setT(Number(frozen) % LOOP);
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Reduced motion opens paused on a representative frame; the viewer can still press play
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (frozen || still) {
+      clock = frozen ? Number(frozen) % LOOP : STATIC_T;
+      pausedRef.current = true;
+      setPaused(true);
+      setT(clock);
+    }
     let visible = true;
     let raf = 0;
     let last = performance.now();
-    let clock = 0;
     const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting));
     if (box.current) io.observe(box.current);
     const tick = (now: number) => {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
-      if (visible) {
-        clock += dt;
-        setT(clock % LOOP);
+      if (visible && !pausedRef.current) {
+        clock = (clock + dt) % LOOP;
+        setT(clock);
       }
       raf = requestAnimationFrame(tick);
     };
@@ -246,7 +264,27 @@ export default function FlowSchema() {
     <div ref={box} className={s.flow}>
       <div className={s.flowHead}>
         <span>Sample vault · {eur(PRINCIPAL)} · 5-year term · illustrative figures</span>
-        <span className={s.flowClock}>{term}</span>
+        <span className={s.flowControls}>
+          <span className={s.flowClock}>{term}</span>
+          <button
+            type="button"
+            className={s.flowToggle}
+            onClick={togglePause}
+            aria-label={paused ? "Play animation" : "Pause animation"}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+              {paused ? (
+                <path d="M2 1 L9 5 L2 9 Z" fill="currentColor" />
+              ) : (
+                <>
+                  <rect x="1.5" y="1" width="2.5" height="8" rx="0.5" fill="currentColor" />
+                  <rect x="6" y="1" width="2.5" height="8" rx="0.5" fill="currentColor" />
+                </>
+              )}
+            </svg>
+            {paused ? "Play" : "Pause"}
+          </button>
+        </span>
       </div>
 
       <svg
@@ -257,7 +295,7 @@ export default function FlowSchema() {
       >
         <g style={{ opacity: sceneOpacity }}>
           {/* rails */}
-          {fs.filter((f) => !f.id.startsWith("redeem") && f.id !== "repay").map((f) => (
+          {fs.filter((f) => !f.id.startsWith("redeem")).map((f) => (
             <path key={`rail-${f.id}`} d={railPath(f)} className={s.rail} />
           ))}
           <path
@@ -269,6 +307,7 @@ export default function FlowSchema() {
           {/* particles */}
           {fs.flatMap((f) => particles(f, t))}
           {pulses(plant, dataCtrl, pool, t)}
+          {drawdown(pool, L.ctrl.drawdown ?? mid(pool, account), account, t)}
 
           {/* lenders */}
           {L.lenders.map((p, i) => {
@@ -303,7 +342,7 @@ export default function FlowSchema() {
             } />
           <Card L={L} at={account} title="Owner's Sunday account" sub="IBAN · wallet · card" live={m.phase !== "funding"}
             rows={[
-              m.phase === "repay" || m.phase === "redeem" ? ["Repaid to pool", eur(m.repaid)] : ["Loan received", eur(m.drawn)],
+              m.phase === "repay" || m.phase === "redeem" ? ["Repaid to pool", eur(m.repaid)] : ["Loan received", eur(m.received)],
               ["Energy sales", eur(m.settled)],
             ]} />
           <Card L={L} at={trader} title="Electricity trader" sub="day-ahead market" live={t >= TERM_START}
@@ -376,6 +415,21 @@ function pulses(from: Pt, c: Pt, to: Pt, t: number) {
   if (u > 1 || TERM_START + j * PULSE_EVERY > TERM_END - 0.2) return null;
   const pt = quad(from, c, to, u);
   return <rect x={pt.x - 4} y={pt.y - 4} width={8} height={8} rx={1.5} className={s.pulse} transform={`rotate(45 ${pt.x} ${pt.y})`} />;
+}
+
+/** The principal as a single transfer, pool → owner's account, labelled with its amount */
+function drawdown(from: Pt, c: Pt, to: Pt, t: number) {
+  const u = (t - DRAWDOWN_AT) / DRAWDOWN_DUR;
+  if (u < 0 || u > 1) return null;
+  const e = u * u * (3 - 2 * u); // ease in and out: one deliberate move
+  const pt = quad(from, c, to, e);
+  const a = Math.min(1, u / 0.08, (1 - u) / 0.08);
+  return (
+    <g opacity={a}>
+      <circle cx={pt.x} cy={pt.y} r={6.5} className={s.transfer} />
+      <text x={pt.x + 12} y={pt.y - 10} className={s.tick}>{eur(PRINCIPAL)}</text>
+    </g>
+  );
 }
 
 /** "+€n premium" floating up from the pool as each report lands */

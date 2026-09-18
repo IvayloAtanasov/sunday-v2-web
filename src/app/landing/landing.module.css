@@ -250,6 +250,7 @@
 .flowHead {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 16px;
   flex-wrap: wrap;
   padding: 16px 20px;
@@ -259,6 +260,37 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--faint);
+}
+
+.flowControls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.flowToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.flowToggle:hover {
+  border-color: var(--faint);
+}
+
+.flowToggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .flowClock {
@@ -289,6 +321,11 @@
 .pulse {
   fill: var(--data);
   filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+}
+
+.transfer {
+  fill: var(--money);
+  filter: drop-shadow(0 0 6px rgba(94, 224, 160, 0.7));
 }
 
 .lender {
