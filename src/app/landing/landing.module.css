@@ -3,7 +3,8 @@
  * Direction "Instrument": near-black, one accent, monospaced numerals.
  */
 
-.page {
+/* Colour tokens. Shared with the app: its header and wallet gate apply this class directly */
+.tokens {
   --bg: #0b0c0e;
   --surface: #121418;
   --line: #22252b;
@@ -15,7 +16,10 @@
   --money: #5ee0a0;
   --data: #c8ccd4;
   --mono: var(--font-geist-mono), ui-monospace, Menlo, monospace;
+}
 
+.page {
+  composes: tokens;
   min-height: 100vh;
   background: var(--bg);
   color: var(--text);
@@ -55,6 +59,46 @@
 .logoLink {
   color: var(--text);
   text-decoration: none;
+}
+
+/* ---------- wallet gate (app) ---------- */
+
+.gate {
+  width: 100%;
+  min-height: 50vh;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.gateCard {
+  max-width: 480px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 32px;
+}
+
+.gateTitle {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  margin: 0 0 12px;
+}
+
+.gateText {
+  color: var(--muted);
+  margin: 0 0 28px;
+}
+
+.gateActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
 
 /* ---------- buttons ---------- */

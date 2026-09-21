@@ -100,7 +100,7 @@ export const footer = {
       { label: "Web", href: "https://github.com/IvayloAtanasov/sunday-v2-web" },
       { label: "Contracts", href: "https://github.com/IvayloAtanasov/sunday-v2-blockchain" },
       { label: "Backend", href: "https://github.com/IvayloAtanasov/sunday-v2-backend" },
-      { label: "Oracle workflows", href: "https://github.com/IvayloAtanasov/sunday-v2-cre" },
+      { label: "Yield formula", href: "https://github.com/IvayloAtanasov/sunday-v2-blockchain/blob/develop/src/YieldAdapter.sol" },
       { label: "SunToken (ERC-1155)", href: `https://testnet.arcscan.app/address/${SUN_TOKEN}` },
     ],
     social: [

@@ -1,6 +1,6 @@
 'use client'
 
-import { getDefaultConfig, RainbowKitProvider } from "@rainbow-me/rainbowkit";
+import { ConnectButton, darkTheme, getDefaultConfig, RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import {
   injectedWallet,
   metaMaskWallet,
@@ -15,7 +15,9 @@ import {
   QueryClientProvider,
   QueryClient,
 } from "@tanstack/react-query";
-import Header from '../components/Header';
+import SiteHeader from '../landing/SiteHeader';
+import WalletGate from '../components/WalletGate';
+import s from '../landing/landing.module.css';
 import Footer from '../components/Footer';
 import '@rainbow-me/rainbowkit/styles.css';
 
@@ -47,6 +49,13 @@ const config = getDefaultConfig({
 });
 const queryClient = new QueryClient();
 
+// Match the site's amber accent and squarer corners
+const walletTheme = darkTheme({
+  accentColor: '#f5a524',
+  accentColorForeground: '#111111',
+  borderRadius: 'small',
+});
+
 /**
  * The app shell. Everything wallet-aware lives here rather than at the root, so the
  * landing page does not pay for wagmi, RainbowKit and WalletConnect to render static
@@ -60,11 +69,14 @@ export default function AppLayout({
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>
-          <div className="grid grid-rows-[auto_1fr_auto] min-h-screen">
-            <Header />
+        <RainbowKitProvider theme={walletTheme}>
+          {/* s.page: the site's dark background and tokens, independent of the OS colour scheme */}
+          <div className={`${s.page} grid grid-rows-[auto_1fr_auto]`}>
+            <SiteHeader>
+              <ConnectButton />
+            </SiteHeader>
             <main className="flex flex-col items-center sm:items-start p-8 pb-20 gap-16 sm:p-20">
-              {children}
+              <WalletGate>{children}</WalletGate>
             </main>
             <Footer />
           </div>

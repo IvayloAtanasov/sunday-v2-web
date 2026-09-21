@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Logo from "./landing/Logo";
+import SiteHeader from "./landing/SiteHeader";
 import FlowSchema from "./landing/FlowSchema";
 import s from "./landing/landing.module.css";
 import {
@@ -22,16 +23,11 @@ import {
 export default function Landing() {
   return (
     <div className={s.page}>
-      <header className={s.nav}>
-        <div className={`${s.wrap} ${s.navInner}`}>
-          <Link href="/" className={s.logoLink} aria-label="Sunday home">
-            <Logo />
-          </Link>
-          <Link href="/app" className={s.btnPrimary}>
-            Go to app →
-          </Link>
-        </div>
-      </header>
+      <SiteHeader>
+        <Link href="/app" className={s.btnPrimary}>
+          Go to app →
+        </Link>
+      </SiteHeader>
 
       <main>
         <section className={s.hero}>
