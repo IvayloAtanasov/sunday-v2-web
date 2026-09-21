@@ -1,219 +1,94 @@
-import { useEffect, useState } from 'react'
-import { useReadContract, useAccount, useConfig, useWriteContract } from 'wagmi';
-import { waitForTransactionReceipt } from 'wagmi/actions'
-import { formatUnits, parseUnits } from 'ethers'
-import { useForm } from 'react-hook-form'
-import fundingVaultAbi from '../contracts/fundingVault.json';
-import sunTokenAbi from '../contracts/sunToken.json';
-import erc20Abi from '../contracts/erc20.json';
-import { fetchIpfsJson, ipfsUrl } from '../lib/ipfs';
+'use client'
 
-type FormData = {
-  amount: number
-}
+import Link from 'next/link'
+import type { Installation } from '../lib/api'
+import { ipfsUrl } from '../lib/ipfs'
+import { documentLabel } from '../lib/metadata'
+import { useVault } from '../hooks/useVault'
+import { usePosition } from '../hooks/usePosition'
+import { useTokenMetadata } from '../hooks/useTokenMetadata'
+import VaultStatus from './VaultStatus'
+import LenderPanel from './LenderPanel'
+import RolePanel from './RolePanel'
+import ContractsPanel from './ContractsPanel'
+import { Row, Rows } from './ui'
+import s from '../app/app.module.css'
 
-type TokenMetadata = {
-  name: string
-  description: string
-  properties: {
-    area: string
-    capacity: string
-    location: string
-  }
-}
+export default function InstallationDetails({ installation }: { installation: Installation }) {
+  const vaultAddress = installation.vaultAddress
+  const { vault, error, refetch } = useVault(vaultAddress)
+  const position = usePosition(vaultAddress, vault)
+  const { uri, metadata } = useTokenMetadata(vault?.claimToken, vault?.tokenId)
 
-// Note: could also be taken from vault
-const EURC_ADDRESS = '0x5E44db7996c682E92a960b65AC713a54AD815c6B'
+  // After any transaction both the vault and the wallet have moved.
+  const refresh = () => Promise.all([refetch(), position.refetch()])
 
-export default function InstallationDetails({ installation }: { installation: any }) {
-  const [name, setName] = useState<string>()
-  const [description, setDescription] = useState<string>()
-  const [area, setArea] = useState<string>()
-  const [capacity, setCapacity] = useState<string>()
-  const [location, setLocation] = useState<string>()
-
-  const { isConnected, address: currentAddress } = useAccount()
-  const wagmiConfig = useConfig()
-  const { writeContractAsync } = useWriteContract()
-
-  const { register, handleSubmit } = useForm<FormData>()
-
-  const { data: assetTokenAddress } = useReadContract({
-    address: installation.vaultAddress,
-    abi: fundingVaultAbi,
-    functionName: 'assetToken',
-    args: []
-  })
-
-  const { data: uri } = useReadContract({
-    address: assetTokenAddress as any,
-    abi: sunTokenAbi,
-    functionName: 'uri',
-    args: [installation.tokenId]
-  })
-
-  const { data: targetFunding } = useReadContract({
-    address: installation.vaultAddress,
-    abi: fundingVaultAbi,
-    functionName: 'targetFunding',
-    args: []
-  })
-
-  const { data: redeemable } = useReadContract({
-    address: installation.vaultAddress,
-    abi: fundingVaultAbi,
-    functionName: 'redeemable',
-    args: []
-  })
-
-  const { data: maturity } = useReadContract({
-    address: installation.vaultAddress,
-    abi: fundingVaultAbi,
-    functionName: 'maturity',
-    args: []
-  })
-
-  const { data: borrower } = useReadContract({
-    address: installation.vaultAddress,
-    abi: fundingVaultAbi,
-    functionName: 'borrower',
-    args: []
-  })
-
-  const { data: oracleAddress } = useReadContract({
-    address: installation.vaultAddress,
-    abi: fundingVaultAbi,
-    functionName: 'rebaseAdapterAddress',
-    args: []
-  })
-
-  const { data: sunTokensBalance } = useReadContract({
-    address: assetTokenAddress as any,
-    abi: sunTokenAbi,
-    functionName: 'balanceOf',
-    args: [currentAddress, installation.tokenId]
-  })
-
-  useEffect(() => {
-    if (!uri) return
-
-    const fetchMetadata = async () => {
-      const metadata = await fetchIpfsJson<TokenMetadata>(uri as string)
-
-      setName(metadata.name)
-      setDescription(metadata.description)
-      setArea(metadata.properties.area)
-      setCapacity(metadata.properties.capacity)
-      setLocation(metadata.properties.location)
-    }
-
-    fetchMetadata().catch(error => console.error('Failed to load token metadata', error))
-  }, [uri])
-
-  const onSubmit = async (data: FormData) => {
-    console.log('Investing:', data.amount)
-
-    const amount = parseUnits(data.amount.toString(), 6)
-
-    const approveTxHash = await writeContractAsync({
-      address: EURC_ADDRESS, // EURC
-      abi: erc20Abi,
-      functionName: 'approve',
-      args: [installation.vaultAddress, amount]
-    })
-
-    console.log(`Approve tx placed: ${approveTxHash}`)
-
-    const receipt = await waitForTransactionReceipt(wagmiConfig, {
-      hash: approveTxHash,
-      confirmations: 1
-    })
-
-    console.log(`Approve tx receipt status: `, receipt.status)
-
-    const erc1155data = '0x'
-    const investTxHash = await writeContractAsync({
-      address: installation.vaultAddress,
-      abi: fundingVaultAbi,
-      functionName: 'borrow',
-      args: [amount, erc1155data]
-    })
-
-    console.log(`Invest tx placed: ${investTxHash}`)
-  }
+  const title = metadata?.name ?? installation.stationId
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6">{name}</h1>
-      <div className="flex flex-col gap-8 md:flex-row md:gap-6">
-        <div className="flex-1 space-y-4">
-          <h3 className="text-xl font-bold">{installation.stationId}</h3>
-          <p className="text-gray-400">{description}</p>
-          <img
-            src={ipfsUrl(installation.imageUrl)}
-            alt={installation.stationId}
-            className="w-full h-64 object-cover rounded"
-          />
-          <p className="text-gray-400">Area: {area}</p>
-          <p className="text-gray-400">Capacity: {capacity}</p>
-          <p className="text-gray-400">Location: {location}</p>
-          <div>
-            <a href={ipfsUrl(uri as string) ?? '#'} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-              View IPFS metadata
-            </a>
-          </div>
+    <div className={s.container}>
+      <Link href="/app" className={s.back}>
+        ← All installations
+      </Link>
+
+      <header className={s.header}>
+        <div>
+          <h1 className={s.title}>{title}</h1>
+          <p className={s.subtitle}>
+            {[metadata?.properties?.location, metadata?.properties?.capacity].filter(Boolean).join(' · ') ||
+              installation.stationId}
+          </p>
         </div>
-        <div className="flex-1 space-y-4">
-          {(typeof targetFunding === 'bigint') && <p className="text-gray-400">Target funding: {formatUnits(targetFunding, 6)} EURC</p>}
-          {(typeof redeemable === 'bigint') && <p className="text-gray-400">Redeemable funds: {formatUnits(redeemable, 6)} EURC</p>}
-          {(typeof maturity === 'bigint') && <p className="text-gray-400">Matures at: {new Date(Number(maturity * BigInt(1000))).toString()}</p>}
-          {!!borrower && (
-            <div>
-              <a
-                href={`https://testnet.snowtrace.io/address/${borrower}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 underline"
-              >
-                View Borrower
-              </a>
-            </div>
-          )}
-          {!!oracleAddress && (
-            <div>
-              <a
-                href={`https://testnet.snowtrace.io/address/${oracleAddress}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 underline"
-              >
-                View Oracle
-              </a>
-            </div>
-          )}
+      </header>
+
+      {error && (
+        <p className={s.statusError} style={{ marginBottom: 24 }}>
+          Could not read the vault at {vaultAddress}: {error.message}
+        </p>
+      )}
+
+      <div className={s.layout}>
+        <div className={s.column}>
+          <img src={ipfsUrl(installation.imageUrl)} alt={title} className={s.image} />
+
+          <section className={s.panel}>
+            <h2 className={s.panelTitle}>Installation</h2>
+            {metadata?.description && <p className={s.panelText}>{metadata.description}</p>}
+            <Rows>
+              <Row label="Station">{installation.stationId}</Row>
+              {metadata?.properties?.capacity && <Row label="Capacity">{metadata.properties.capacity}</Row>}
+              {metadata?.properties?.area && <Row label="Area">{metadata.properties.area}</Row>}
+              {metadata?.properties?.location && <Row label="Location">{metadata.properties.location}</Row>}
+              {Object.entries(metadata?.documents ?? {}).map(([key, url]) => (
+                <Row key={key} label={documentLabel(key)}>
+                  <a href={ipfsUrl(url)} target="_blank" rel="noopener noreferrer" className={s.link}>
+                    Open
+                  </a>
+                </Row>
+              ))}
+              {uri && (
+                <Row label="Token metadata">
+                  <a href={ipfsUrl(uri)} target="_blank" rel="noopener noreferrer" className={s.link}>
+                    IPFS
+                  </a>
+                </Row>
+              )}
+            </Rows>
+          </section>
+
+          {vault && <ContractsPanel vaultAddress={vaultAddress} vault={vault} />}
         </div>
-        <div className="flex-1 space-y-4">
-          <h3 className="text-xl font-bold">Invest</h3>
-          {(typeof sunTokensBalance === 'bigint') && <p className="text-gray-400">Owned: {formatUnits(sunTokensBalance, 6)}</p>}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <input
-              type="number"
-              {...register('amount', { required: true })}
-              placeholder="Amount (EURC)"
-              className="w-full border border-gray-300 rounded px-4 py-2 text-black"
-            />
-            <button
-              type="submit"
-              className={`w-full font-semibold py-2 px-4 rounded transition
-                ${isConnected
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'}
-                `}
-              disabled={!isConnected}
-            >
-              Submit
-            </button>
-          </form>
+
+        <div className={s.column}>
+          {vault ? (
+            <>
+              <VaultStatus vault={vault} timeZone={installation.timezone} />
+              <RolePanel vaultAddress={vaultAddress} vault={vault} position={position} onChange={refresh} />
+              <LenderPanel vaultAddress={vaultAddress} vault={vault} position={position} onChange={refresh} />
+            </>
+          ) : (
+            !error && <p className={s.placeholder}>Reading the vault…</p>
+          )}
         </div>
       </div>
     </div>

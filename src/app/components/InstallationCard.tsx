@@ -1,21 +1,58 @@
+'use client'
+
 import Link from 'next/link'
 import { ipfsUrl } from '../lib/ipfs'
+import type { Installation } from '../lib/api'
+import { useVault } from '../hooks/useVault'
+import { useTokenMetadata } from '../hooks/useTokenMetadata'
+import { Phase } from '../lib/phase'
+import { formatDate, formatEur, percent } from '../lib/format'
+import { PhaseBadge } from './ui'
+import s from '../app/app.module.css'
 
-type Props = {
-  slug: string
-  title: string
-  image: string
-}
+export default function InstallationCard({ installation }: { installation: Installation }) {
+  const { vault } = useVault(installation.vaultAddress)
+  const { metadata } = useTokenMetadata(vault?.claimToken, vault?.tokenId)
 
-export default function InstallationCard({ slug, title, image }: Props) {
+  const funded = vault ? percent(vault.subscribed, vault.principal) : 0
+
   return (
-    <Link
-      href={`/app/installations/${slug}`}
-      className="block rounded-lg overflow-hidden shadow hover:shadow-lg transition duration-200 bg-white"
-    >
-      <img src={ipfsUrl(image)} alt={title} className="w-full h-64 object-cover" />
-      <div className="p-6">
-        <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+    <Link href={`/app/installations/${installation._id}`} className={s.card}>
+      <img
+        src={ipfsUrl(installation.imageUrl)}
+        alt={metadata?.name ?? installation.stationId}
+        className={s.cardImage}
+      />
+      <div className={s.cardBody}>
+        <div className={s.cardHead}>
+          <div>
+            <h3 className={s.cardTitle}>{metadata?.name ?? installation.stationId}</h3>
+            {metadata?.properties?.location && (
+              <p className={s.subtitle}>{metadata.properties.location}</p>
+            )}
+          </div>
+          {vault && <PhaseBadge phase={vault.phase} />}
+        </div>
+
+        {vault && (
+          <div>
+            <p className={s.mono}>{formatEur(vault.principal, vault.collateralDecimals)}</p>
+            {vault.phase === Phase.Funding && (
+              <>
+                <div className={s.progress}>
+                  <div className={s.progressBar} style={{ width: `${funded}%` }} />
+                </div>
+                <div className={s.progressMeta}>
+                  <span>{funded}% funded</span>
+                  <span>until {formatDate(vault.fundingDeadline)}</span>
+                </div>
+              </>
+            )}
+            {vault.phase !== Phase.Funding && metadata?.properties?.capacity && (
+              <p className={s.muted}>{metadata.properties.capacity}</p>
+            )}
+          </div>
+        )}
       </div>
     </Link>
   )

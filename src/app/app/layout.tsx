@@ -4,13 +4,9 @@ import { ConnectButton, darkTheme, getDefaultConfig, RainbowKitProvider } from "
 import {
   injectedWallet,
   metaMaskWallet,
-  coinbaseWallet,
   walletConnectWallet,
 } from "@rainbow-me/rainbowkit/wallets";
 import { WagmiProvider, http } from 'wagmi';
-import {
-  avalancheFuji
-} from 'wagmi/chains';
 import {
   QueryClientProvider,
   QueryClient,
@@ -19,6 +15,7 @@ import SiteHeader from '../landing/SiteHeader';
 import WalletGate from '../components/WalletGate';
 import s from '../landing/landing.module.css';
 import Footer from '../components/Footer';
+import { chain, rpcUrl } from '../lib/chain';
 import '@rainbow-me/rainbowkit/styles.css';
 
 // WalletConnect's connector is built as soon as the wagmi config is created, and
@@ -29,22 +26,18 @@ const isBrowser = typeof window !== 'undefined';
 const config = getDefaultConfig({
   appName: 'Sunday',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'sunday',
-  chains: [
-    avalancheFuji,
-  ],
+  chains: [chain],
   wallets: [
     {
       groupName: 'Recommended',
       wallets: isBrowser
-        ? [injectedWallet, metaMaskWallet, coinbaseWallet, walletConnectWallet]
+        ? [injectedWallet, metaMaskWallet, walletConnectWallet]
         : [injectedWallet],
     },
   ],
   ssr: true, // If your dApp uses server side rendering (SSR)
   transports: {
-    [avalancheFuji.id]: http(
-      'https://avalanche-fuji-c-chain-rpc.publicnode.com'
-    )
+    [chain.id]: http(rpcUrl),
   }
 });
 const queryClient = new QueryClient();
@@ -75,7 +68,7 @@ export default function AppLayout({
             <SiteHeader>
               <ConnectButton />
             </SiteHeader>
-            <main className="flex flex-col items-center sm:items-start p-8 pb-20 gap-16 sm:p-20">
+            <main className="flex flex-col items-center px-6 py-10 pb-20 sm:py-14">
               <WalletGate>{children}</WalletGate>
             </main>
             <Footer />
